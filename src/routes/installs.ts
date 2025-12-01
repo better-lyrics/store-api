@@ -21,8 +21,8 @@ installs.post("/:themeId", async (c) => {
     );
   }
 
-  // Get client IP for rate limiting
-  const ip = c.req.header("CF-Connecting-IP") || c.req.header("X-Forwarded-For") || "unknown";
+  // Get client IP for rate limiting (only trust CF-Connecting-IP to prevent spoofing)
+  const ip = c.req.header("CF-Connecting-IP") || "unknown";
   const rateLimitKey = `ratelimit:install:${ip}:${themeId}`;
 
   // Check rate limit

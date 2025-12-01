@@ -4,9 +4,28 @@ import { isValidThemeId, validateRatingBody } from "../lib/validation";
 
 const ratings = new Hono<{ Bindings: Env }>();
 
+// Rate limit: max ratings per IP per theme per day
+const RATE_LIMIT_TTL = 60 * 60 * 24;
+
 // POST /api/rate/:themeId - Submit or update a rating
 ratings.post("/:themeId", async (c) => {
   const themeId = c.req.param("themeId");
+
+  // Get client IP for rate limiting (only trust CF-Connecting-IP)
+  const ip = c.req.header("CF-Connecting-IP") || "unknown";
+  const rateLimitKey = `ratelimit:rate:${ip}:${themeId}`;
+
+  // Check rate limit - one rating per IP per theme per day
+  const existingRateLimit = await c.env.KV.get(rateLimitKey);
+  if (existingRateLimit) {
+    return c.json<ErrorResponse>(
+      {
+        error: "RATE_LIMITED",
+        message: "Rating already submitted for this theme today",
+      },
+      429
+    );
+  }
 
   // Validate theme ID
   if (!isValidThemeId(themeId)) {
@@ -46,16 +65,19 @@ ratings.post("/:themeId", async (c) => {
 
   const { rating, odid } = body as RatingBody;
 
-  // Upsert the rating
-  await c.env.DB.prepare(
-    `INSERT INTO ratings (theme_id, odid, rating, updated_at)
-     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-     ON CONFLICT(theme_id, odid) DO UPDATE SET
-       rating = excluded.rating,
-       updated_at = CURRENT_TIMESTAMP`
-  )
-    .bind(themeId, odid, rating)
-    .run();
+  // Upsert the rating and set rate limit marker
+  await Promise.all([
+    c.env.DB.prepare(
+      `INSERT INTO ratings (theme_id, odid, rating, updated_at)
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(theme_id, odid) DO UPDATE SET
+         rating = excluded.rating,
+         updated_at = CURRENT_TIMESTAMP`
+    )
+      .bind(themeId, odid, rating)
+      .run(),
+    c.env.KV.put(rateLimitKey, "1", { expirationTtl: RATE_LIMIT_TTL }),
+  ]);
 
   // Get updated stats
   const stats = await c.env.DB.prepare(
