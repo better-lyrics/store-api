@@ -124,7 +124,13 @@ webhooks.post("/github", async (c) => {
   const payload = JSON.parse(body) as WebhookPayload;
   const repo = payload.repository.full_name;
   const commit = payload.after;
+  const ref = payload.ref;
   const installationId = payload.installation?.id;
+
+  // Only process main/master branch
+  if (ref !== "refs/heads/main" && ref !== "refs/heads/master") {
+    return c.json({ message: "Ignoring non-default branch", ref }, 200);
+  }
 
   if (repo === "better-lyrics/themes") {
     return c.json({ message: "Ignoring registry repo" }, 200);

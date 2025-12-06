@@ -69,6 +69,7 @@ export interface WebhookPayload {
   repository: {
     full_name: string;
   };
+  ref: string;
   after: string;
   commits?: Array<{
     modified?: string[];
