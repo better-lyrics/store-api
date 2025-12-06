@@ -9,3 +9,18 @@ CREATE TABLE IF NOT EXISTS ratings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ratings_theme ON ratings(theme_id);
+
+CREATE TABLE IF NOT EXISTS webhook_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  delivery_id TEXT UNIQUE,
+  repo TEXT,
+  commit_sha TEXT,
+  event TEXT,
+  status TEXT NOT NULL,
+  error TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_repo ON webhook_logs(repo);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_status ON webhook_logs(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_created ON webhook_logs(created_at);

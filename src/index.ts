@@ -4,6 +4,7 @@ import { corsMiddleware } from "./middleware/cors";
 import installs from "./routes/installs";
 import ratings from "./routes/ratings";
 import stats from "./routes/stats";
+import webhooks from "./routes/webhooks";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -15,6 +16,7 @@ app.route("/api/install", installs);
 app.route("/api/rate", ratings);
 app.route("/api/rating", ratings);
 app.route("/api/stats", stats);
+app.route("/api/webhooks", webhooks);
 
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));

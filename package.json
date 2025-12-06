@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "secret:put": "wrangler secret put",
+    "secret:list": "wrangler secret list",
     "db:init": "wrangler d1 execute themes-db --remote --file=./schema.sql",
     "db:init:local": "wrangler d1 execute themes-db --local --file=./schema.sql"
   },

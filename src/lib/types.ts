@@ -3,6 +3,9 @@ import type { Context } from "hono";
 export interface Env {
   KV: KVNamespace;
   DB: D1Database;
+  GITHUB_APP_ID: string;
+  GITHUB_APP_PRIVATE_KEY: string;
+  GITHUB_WEBHOOK_SECRET: string;
 }
 
 export type AppContext = Context<{ Bindings: Env }>;
@@ -48,4 +51,30 @@ export interface RatingAggregateRow {
 export interface ErrorResponse {
   error: string;
   message: string;
+}
+
+export interface ThemeMetadata {
+  id: string;
+  title: string;
+  description?: string;
+  creators: string[];
+  version: string;
+  minVersion?: string;
+  hasShaders?: boolean;
+  tags?: string[];
+  images?: string[];
+}
+
+export interface WebhookPayload {
+  repository: {
+    full_name: string;
+  };
+  after: string;
+  commits?: Array<{
+    modified?: string[];
+    added?: string[];
+  }>;
+  installation?: {
+    id: number;
+  };
 }
