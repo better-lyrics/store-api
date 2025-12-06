@@ -177,7 +177,7 @@ webhooks.post("/github", async (c) => {
       context: "Better Lyrics Registry",
     });
 
-    await triggerRegistryDispatch(c.env, { repo, commit });
+    await triggerRegistryDispatch(c.env, { repo, commit, installationId });
 
     await logWebhook(c.env.DB, { deliveryId, status: "dispatched" });
 
@@ -219,6 +219,7 @@ webhooks.post("/marketplace", async (c) => {
 interface CompletePayload {
   repo: string;
   commit: string;
+  installationId: number;
   success: boolean;
   description?: string;
 }
@@ -235,18 +236,16 @@ webhooks.post("/complete", async (c) => {
   }
 
   const body = (await c.req.json()) as CompletePayload;
-  const { repo, commit, success, description } = body;
+  const { repo, commit, installationId, success, description } = body;
 
-  if (!repo || !commit) {
+  if (!repo || !commit || !installationId) {
     return c.json<ErrorResponse>(
-      { error: "BAD_REQUEST", message: "Missing repo or commit" },
+      { error: "BAD_REQUEST", message: "Missing repo, commit, or installationId" },
       400
     );
   }
 
-  const orgInstallationId = parseInt(c.env.GITHUB_ORG_INSTALLATION_ID, 10);
-
-  await setCommitStatus(c.env, orgInstallationId, {
+  await setCommitStatus(c.env, installationId, {
     repo,
     commit,
     state: success ? "success" : "failure",

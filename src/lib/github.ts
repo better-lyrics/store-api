@@ -178,6 +178,7 @@ export async function triggerRegistryDispatch(
   payload: {
     repo: string;
     commit: string;
+    installationId: number;
   }
 ): Promise<void> {
   const orgInstallationId = parseInt(env.GITHUB_ORG_INSTALLATION_ID, 10);
