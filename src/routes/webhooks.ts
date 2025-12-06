@@ -206,4 +206,8 @@ webhooks.post("/github", async (c) => {
   }
 });
 
+webhooks.post("/marketplace", async (c) => {
+  return c.text("OK", 200);
+});
+
 export default webhooks;
