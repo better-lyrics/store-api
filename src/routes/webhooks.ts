@@ -50,7 +50,7 @@ async function fetchMetadata(
 
 async function checkThemeRegistered(repo: string): Promise<boolean> {
   const indexUrl =
-    "https://raw.githubusercontent.com/better-lyrics/themes/main/index.json";
+    "https://raw.githubusercontent.com/better-lyrics/themes/master/index.json";
 
   const response = await fetch(indexUrl, {
     headers: { "User-Agent": "better-lyrics-store-api" },
