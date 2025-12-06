@@ -216,4 +216,45 @@ webhooks.post("/marketplace", async (c) => {
   return c.text("OK", 200);
 });
 
+interface CompletePayload {
+  repo: string;
+  commit: string;
+  success: boolean;
+  description?: string;
+}
+
+webhooks.post("/complete", async (c) => {
+  const authHeader = c.req.header("Authorization") || "";
+  const token = authHeader.replace("Bearer ", "");
+
+  if (token !== c.env.GITHUB_WEBHOOK_SECRET) {
+    return c.json<ErrorResponse>(
+      { error: "UNAUTHORIZED", message: "Invalid token" },
+      401
+    );
+  }
+
+  const body = (await c.req.json()) as CompletePayload;
+  const { repo, commit, success, description } = body;
+
+  if (!repo || !commit) {
+    return c.json<ErrorResponse>(
+      { error: "BAD_REQUEST", message: "Missing repo or commit" },
+      400
+    );
+  }
+
+  const orgInstallationId = parseInt(c.env.GITHUB_ORG_INSTALLATION_ID, 10);
+
+  await setCommitStatus(c.env, orgInstallationId, {
+    repo,
+    commit,
+    state: success ? "success" : "failure",
+    description: description || (success ? "Published to registry" : "Failed to publish"),
+    context: "Better Lyrics Registry",
+  });
+
+  return c.json({ message: "Status updated", repo, commit, success });
+});
+
 export default webhooks;
