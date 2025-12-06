@@ -175,6 +175,7 @@ webhooks.post("/github", async (c) => {
       state: "pending",
       description: "Publishing to registry...",
       context: "Better Lyrics Registry",
+      targetUrl: "https://github.com/better-lyrics/themes/actions",
     });
 
     await triggerRegistryDispatch(c.env, { repo, commit, installationId });
@@ -222,6 +223,7 @@ interface CompletePayload {
   installationId: number;
   success: boolean;
   description?: string;
+  targetUrl?: string;
 }
 
 webhooks.post("/complete", async (c) => {
@@ -236,7 +238,7 @@ webhooks.post("/complete", async (c) => {
   }
 
   const body = (await c.req.json()) as CompletePayload;
-  const { repo, commit, installationId, success, description } = body;
+  const { repo, commit, installationId, success, description, targetUrl } = body;
 
   if (!repo || !commit || !installationId) {
     return c.json<ErrorResponse>(
@@ -251,6 +253,7 @@ webhooks.post("/complete", async (c) => {
     state: success ? "success" : "failure",
     description: description || (success ? "Published to registry" : "Failed to publish"),
     context: "Better Lyrics Registry",
+    targetUrl,
   });
 
   return c.json({ message: "Status updated", repo, commit, success });
