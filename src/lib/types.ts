@@ -6,6 +6,7 @@ export interface Env {
   GITHUB_APP_ID: string;
   GITHUB_APP_PRIVATE_KEY: string;
   GITHUB_WEBHOOK_SECRET: string;
+  GITHUB_ORG_INSTALLATION_ID: string;
 }
 
 export type AppContext = Context<{ Bindings: Env }>;

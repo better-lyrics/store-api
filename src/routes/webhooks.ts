@@ -177,7 +177,7 @@ webhooks.post("/github", async (c) => {
       context: "Better Lyrics Registry",
     });
 
-    await triggerRegistryDispatch(c.env, installationId, { repo, commit });
+    await triggerRegistryDispatch(c.env, { repo, commit });
 
     await logWebhook(c.env.DB, { deliveryId, status: "dispatched" });
 

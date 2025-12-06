@@ -175,13 +175,13 @@ export async function setCommitStatus(
 
 export async function triggerRegistryDispatch(
   env: Env,
-  installationId: number,
   payload: {
     repo: string;
     commit: string;
   }
 ): Promise<void> {
-  const token = await getInstallationToken(env, installationId);
+  const orgInstallationId = parseInt(env.GITHUB_ORG_INSTALLATION_ID, 10);
+  const token = await getInstallationToken(env, orgInstallationId);
 
   const response = await fetch(
     "https://api.github.com/repos/better-lyrics/themes/dispatches",
