@@ -1,5 +1,10 @@
 import { Hono } from "hono";
-import type { Env, ErrorResponse, ThemeMetadata, WebhookPayload } from "../lib/types";
+import type {
+  Env,
+  ErrorResponse,
+  ThemeMetadata,
+  WebhookPayload,
+} from "../lib/types";
 import {
   verifyWebhookSignature,
   setCommitStatus,
@@ -38,7 +43,9 @@ async function fetchMetadata(
   }
 
   if (!/^[a-z0-9-]+$/.test(metadata.id)) {
-    throw new Error("Invalid id format: must be lowercase letters, numbers, and hyphens");
+    throw new Error(
+      "Invalid id format: must be lowercase letters, numbers, and hyphens"
+    );
   }
 
   if (!/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(metadata.version)) {
@@ -123,6 +130,7 @@ webhooks.post("/github", async (c) => {
 
   const payload = JSON.parse(body) as WebhookPayload;
   const repo = payload.repository.full_name;
+  const author = payload.repository.owner.login;
   const commit = payload.after;
   const ref = payload.ref;
   const installationId = payload.installation?.id;
@@ -132,19 +140,24 @@ webhooks.post("/github", async (c) => {
     return c.json({ message: "Ignoring non-default branch", ref }, 200);
   }
 
-  if (repo === "better-lyrics/themes") {
-    return c.json({ message: "Ignoring registry repo" }, 200);
+  if (author === "better-lyrics") {
+    return c.json({ message: "Ignoring better-lyrics repo" }, 200);
   }
 
   if (!installationId) {
     return c.json<ErrorResponse>(
-      { error: "MISSING_INSTALLATION", message: "No installation ID in payload" },
+      {
+        error: "MISSING_INSTALLATION",
+        message: "No installation ID in payload",
+      },
       400
     );
   }
 
   const metadataChanged = payload.commits?.some(
-    (c) => c.modified?.includes("metadata.json") || c.added?.includes("metadata.json")
+    (c) =>
+      c.modified?.includes("metadata.json") ||
+      c.added?.includes("metadata.json")
   );
 
   if (!metadataChanged) {
@@ -206,10 +219,7 @@ webhooks.post("/github", async (c) => {
       error: message,
     });
 
-    return c.json<ErrorResponse>(
-      { error: "PROCESSING_FAILED", message },
-      500
-    );
+    return c.json<ErrorResponse>({ error: "PROCESSING_FAILED", message }, 500);
   }
 });
 
@@ -238,11 +248,15 @@ webhooks.post("/complete", async (c) => {
   }
 
   const body = (await c.req.json()) as CompletePayload;
-  const { repo, commit, installationId, success, description, targetUrl } = body;
+  const { repo, commit, installationId, success, description, targetUrl } =
+    body;
 
   if (!repo || !commit || !installationId) {
     return c.json<ErrorResponse>(
-      { error: "BAD_REQUEST", message: "Missing repo, commit, or installationId" },
+      {
+        error: "BAD_REQUEST",
+        message: "Missing repo, commit, or installationId",
+      },
       400
     );
   }
@@ -251,7 +265,8 @@ webhooks.post("/complete", async (c) => {
     repo,
     commit,
     state: success ? "success" : "failure",
-    description: description || (success ? "Published to registry" : "Failed to publish"),
+    description:
+      description || (success ? "Published to registry" : "Failed to publish"),
     context: "Better Lyrics Registry",
     targetUrl,
   });

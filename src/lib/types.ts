@@ -69,6 +69,9 @@ export interface ThemeMetadata {
 export interface WebhookPayload {
   repository: {
     full_name: string;
+    owner: {
+      login: string;
+    };
   };
   ref: string;
   after: string;
