@@ -1,10 +1,8 @@
-// Theme ID: alphanumeric + hyphens only
-const THEME_ID_REGEX = /^[a-zA-Z0-9-]+$/;
+import type { SignedRatingBody, SignedRatingPayload, SignedInstallBody, SignedInstallPayload } from "./types";
 
-// ODID: UUID format or 32-char hex
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const HEX_32_REGEX = /^[0-9a-f]{32}$/i;
+const THEME_ID_REGEX = /^[a-zA-Z0-9-]+$/;
+const KEY_ID_REGEX = /^[0-9a-f]{64}$/i;
+const NONCE_REGEX = /^[a-zA-Z0-9-_]{16,64}$/;
 
 export function isValidThemeId(themeId: string): boolean {
   return (
@@ -24,43 +22,73 @@ export function isValidRating(rating: unknown): rating is number {
   );
 }
 
-export function isValidOdid(odid: unknown): odid is string {
+export function isValidKeyId(keyId: unknown): keyId is string {
+  return typeof keyId === "string" && KEY_ID_REGEX.test(keyId);
+}
+
+export function isValidNonce(nonce: unknown): nonce is string {
+  return typeof nonce === "string" && NONCE_REGEX.test(nonce);
+}
+
+export function isValidJwk(jwk: unknown): jwk is JsonWebKey {
+  if (!jwk || typeof jwk !== "object") return false;
+
+  const key = jwk as Record<string, unknown>;
   return (
-    typeof odid === "string" &&
-    (UUID_REGEX.test(odid) || HEX_32_REGEX.test(odid))
+    key.kty === "EC" &&
+    key.crv === "P-256" &&
+    typeof key.x === "string" &&
+    typeof key.y === "string"
   );
 }
 
-export interface ValidationError {
-  field: string;
-  message: string;
+function isValidPayload(payload: unknown): payload is SignedRatingPayload {
+  if (!payload || typeof payload !== "object") return false;
+
+  const p = payload as Record<string, unknown>;
+  return (
+    typeof p.themeId === "string" &&
+    isValidThemeId(p.themeId) &&
+    isValidRating(p.rating) &&
+    typeof p.timestamp === "number" &&
+    isValidNonce(p.nonce) &&
+    isValidKeyId(p.keyId)
+  );
 }
 
-export function validateRatingBody(body: unknown): ValidationError | null {
-  if (!body || typeof body !== "object") {
-    return { field: "body", message: "Request body must be a JSON object" };
-  }
+export function isValidSignedRatingBody(body: unknown): body is SignedRatingBody {
+  if (!body || typeof body !== "object") return false;
 
-  const { rating, odid } = body as { rating?: unknown; odid?: unknown };
+  const b = body as Record<string, unknown>;
 
-  if (rating === undefined) {
-    return { field: "rating", message: "Rating is required" };
-  }
+  if (!isValidPayload(b.payload)) return false;
+  if (typeof b.signature !== "string" || b.signature.length === 0) return false;
+  if (b.publicKey !== undefined && !isValidJwk(b.publicKey)) return false;
 
-  if (!isValidRating(rating)) {
-    return { field: "rating", message: "Rating must be an integer between 1 and 5" };
-  }
+  return true;
+}
 
-  if (odid === undefined) {
-    return { field: "odid", message: "ODID is required" };
-  }
+function isValidInstallPayload(payload: unknown): payload is SignedInstallPayload {
+  if (!payload || typeof payload !== "object") return false;
 
-  if (!isValidOdid(odid)) {
-    return {
-      field: "odid",
-      message: "ODID must be a valid UUID or 32-character hex string",
-    };
-  }
+  const p = payload as Record<string, unknown>;
+  return (
+    typeof p.themeId === "string" &&
+    isValidThemeId(p.themeId) &&
+    typeof p.timestamp === "number" &&
+    isValidNonce(p.nonce) &&
+    isValidKeyId(p.keyId)
+  );
+}
 
-  return null;
+export function isValidSignedInstallBody(body: unknown): body is SignedInstallBody {
+  if (!body || typeof body !== "object") return false;
+
+  const b = body as Record<string, unknown>;
+
+  if (!isValidInstallPayload(b.payload)) return false;
+  if (typeof b.signature !== "string" || b.signature.length === 0) return false;
+  if (b.publicKey !== undefined && !isValidJwk(b.publicKey)) return false;
+
+  return true;
 }

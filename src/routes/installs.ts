@@ -1,51 +1,98 @@
 import { Hono } from "hono";
 import type { Env, InstallResponse, ErrorResponse } from "../lib/types";
-import { isValidThemeId } from "../lib/validation";
+import { verifySignature, isTimestampFresh, verifyKeyId } from "../lib/crypto";
+import { getPublicKey, registerPublicKey } from "../lib/publicKeys";
+import { isValidThemeId, isValidSignedInstallBody } from "../lib/validation";
 
 const installs = new Hono<{ Bindings: Env }>();
 
-// Rate limit key TTL: 24 hours in seconds
-const RATE_LIMIT_TTL = 60 * 60 * 24;
 
 installs.post("/:themeId", async (c) => {
   const themeId = c.req.param("themeId");
 
-  // Validate theme ID
   if (!isValidThemeId(themeId)) {
     return c.json<ErrorResponse>(
-      {
-        error: "INVALID_THEME_ID",
-        message: "Theme ID must be alphanumeric with hyphens only",
-      },
+      { error: "INVALID_THEME_ID", message: "Theme ID must be alphanumeric with hyphens only" },
       400
     );
   }
 
-  // Get client IP for rate limiting (only trust CF-Connecting-IP to prevent spoofing)
-  const ip = c.req.header("CF-Connecting-IP") || "unknown";
-  const rateLimitKey = `ratelimit:install:${ip}:${themeId}`;
-
-  // Check rate limit
-  const existing = await c.env.KV.get(rateLimitKey);
-  if (existing) {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
     return c.json<ErrorResponse>(
-      {
-        error: "RATE_LIMITED",
-        message: "Install already counted for this theme today",
-      },
-      429
+      { error: "INVALID_JSON", message: "Request body must be valid JSON" },
+      400
     );
   }
 
-  // Increment install count atomically using KV
+  if (!isValidSignedInstallBody(body)) {
+    return c.json<ErrorResponse>(
+      { error: "INVALID_REQUEST", message: "Request must include valid payload and signature" },
+      400
+    );
+  }
+
+  const { payload, signature, publicKey } = body;
+
+  if (payload.themeId !== themeId) {
+    return c.json<ErrorResponse>(
+      { error: "THEME_MISMATCH", message: "Payload themeId must match URL parameter" },
+      400
+    );
+  }
+
+  if (!isTimestampFresh(payload.timestamp)) {
+    return c.json<ErrorResponse>(
+      { error: "TIMESTAMP_EXPIRED", message: "Request timestamp is too old or too far in the future" },
+      400
+    );
+  }
+
+  let keyRecord = await getPublicKey(c.env.DB, payload.keyId);
+
+  if (!keyRecord) {
+    if (!publicKey) {
+      return c.json<ErrorResponse>(
+        { error: "PUBLIC_KEY_REQUIRED", message: "Public key is required for first-time registration" },
+        400
+      );
+    }
+
+    if (!(await verifyKeyId(payload.keyId, publicKey))) {
+      return c.json<ErrorResponse>(
+        { error: "KEY_ID_MISMATCH", message: "Key ID does not match the provided public key" },
+        400
+      );
+    }
+
+    keyRecord = await registerPublicKey(c.env.DB, payload.keyId, publicKey);
+  }
+
+  const storedKey = JSON.parse(keyRecord.public_key) as JsonWebKey;
+  if (!(await verifySignature(payload, signature, storedKey))) {
+    return c.json<ErrorResponse>(
+      { error: "INVALID_SIGNATURE", message: "Signature verification failed" },
+      403
+    );
+  }
+
+  const installMarkerKey = `installed:${payload.keyId}:${themeId}`;
+  const existing = await c.env.KV.get(installMarkerKey);
+  if (existing) {
+    const installKey = `installs:${themeId}`;
+    const currentCount = parseInt((await c.env.KV.get(installKey)) || "0", 10) || 0;
+    return c.json<InstallResponse>({ count: currentCount, alreadyCounted: true });
+  }
+
   const installKey = `installs:${themeId}`;
   const currentCount = await c.env.KV.get(installKey);
   const newCount = (parseInt(currentCount || "0", 10) || 0) + 1;
 
-  // Set the new count and rate limit marker
   await Promise.all([
     c.env.KV.put(installKey, newCount.toString()),
-    c.env.KV.put(rateLimitKey, "1", { expirationTtl: RATE_LIMIT_TTL }),
+    c.env.KV.put(installMarkerKey, "1"),
   ]);
 
   return c.json<InstallResponse>({ count: newCount });

@@ -5,6 +5,7 @@ import installs from "./routes/installs";
 import ratings from "./routes/ratings";
 import stats from "./routes/stats";
 import webhooks from "./routes/webhooks";
+import identity from "./routes/identity";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -17,6 +18,7 @@ app.route("/api/rate", ratings);
 app.route("/api/rating", ratings);
 app.route("/api/stats", stats);
 app.route("/api/webhooks", webhooks);
+app.route("/api/identity", identity);
 
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));
