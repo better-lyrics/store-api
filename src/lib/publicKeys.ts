@@ -28,7 +28,7 @@ const ACTIONS = [
   "Swing", "Bounce", "Slide", "Roll", "Spin", "Twist", "Shake", "Break",
   "Jam", "Play", "Rock", "Pop", "Jazz", "Funk", "Soul", "Blues",
   "Surge", "Rush", "Dash", "Zoom", "Flash", "Spark", "Blast", "Burst",
-  "Chill", "Cruise", "Coast", "Drift", "Float", "Hover", "Soar", "Glide",
+  "Chill", "Cruise", "Coast", "Sway", "Float", "Hover", "Soar", "Leap",
   "Strike", "Stomp", "Clap", "Snap", "Tap", "Slap", "Pluck", "Strum",
   "Hum", "Sing", "Chant", "Call", "Shout", "Whisper", "Croon", "Belt"
 ];
