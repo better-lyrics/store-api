@@ -28,19 +28,46 @@ export interface RatingResponse {
 
 export interface InstallResponse {
   count: number;
+  alreadyCounted?: boolean;
 }
 
-export interface RatingBody {
+export interface SignedRatingPayload {
+  themeId: string;
   rating: number;
-  odid: string;
+  timestamp: number;
+  nonce: string;
+  keyId: string;
 }
 
-export interface RatingRow {
-  theme_id: string;
-  odid: string;
-  rating: number;
+export interface SignedRatingBody {
+  payload: SignedRatingPayload;
+  signature: string;
+  publicKey?: JsonWebKey;
+}
+
+export interface SignedInstallPayload {
+  themeId: string;
+  timestamp: number;
+  nonce: string;
+  keyId: string;
+}
+
+export interface SignedInstallBody {
+  payload: SignedInstallPayload;
+  signature: string;
+  publicKey?: JsonWebKey;
+}
+
+export interface PublicKeyRecord {
+  key_id: string;
+  public_key: string;
+  display_name: string;
   created_at: string;
-  updated_at: string;
+}
+
+export interface RatingStats {
+  average: number;
+  count: number;
 }
 
 export interface RatingAggregateRow {
