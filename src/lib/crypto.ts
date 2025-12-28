@@ -37,7 +37,13 @@ export function isTimestampFresh(timestamp: number): boolean {
 }
 
 export async function hashPublicKey(publicKeyJwk: JsonWebKey): Promise<string> {
-  const canonical = canonicalJson(publicKeyJwk);
+  const normalized = {
+    crv: publicKeyJwk.crv,
+    kty: publicKeyJwk.kty,
+    x: publicKeyJwk.x,
+    y: publicKeyJwk.y,
+  };
+  const canonical = canonicalJson(normalized);
   const buffer = new TextEncoder().encode(canonical);
   const hash = await crypto.subtle.digest("SHA-256", buffer);
   return bufferToHex(hash);
@@ -67,6 +73,15 @@ function bufferToHex(buffer: ArrayBuffer): string {
     .join("");
 }
 
-function canonicalJson(obj: object): string {
-  return JSON.stringify(obj, Object.keys(obj).sort());
+function canonicalJson(obj: unknown): string {
+  if (obj === null || typeof obj !== "object") {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return `[${obj.map(canonicalJson).join(",")}]`;
+  }
+  const sorted = Object.keys(obj).sort();
+  return `{${sorted
+    .map((k) => `${JSON.stringify(k)}:${canonicalJson((obj as Record<string, unknown>)[k])}`)
+    .join(",")}}`;
 }
