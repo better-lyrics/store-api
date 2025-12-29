@@ -64,6 +64,8 @@ export function isValidSignedRatingBody(body: unknown): body is SignedRatingBody
   if (!isValidPayload(b.payload)) return false;
   if (typeof b.signature !== "string" || b.signature.length === 0) return false;
   if (b.publicKey !== undefined && !isValidJwk(b.publicKey)) return false;
+  if (b.turnstileToken !== undefined && typeof b.turnstileToken !== "string") return false;
+  if (b.certificate !== undefined && typeof b.certificate !== "string") return false;
 
   return true;
 }

@@ -1,14 +1,23 @@
 import { Hono } from "hono";
-import type { Env, ErrorResponse, RatingStats } from "../lib/types";
+import type {
+  Env,
+  ErrorResponse,
+  RatingStats,
+  RatingResponseWithCertificate,
+} from "../lib/types";
 import { verifySignature, isTimestampFresh, verifyKeyId } from "../lib/crypto";
 import { getPublicKey, registerPublicKey } from "../lib/publicKeys";
 import { upsertRating, hasRating, getRatingStats } from "../lib/ratings";
 import { isValidThemeId, isValidSignedRatingBody } from "../lib/validation";
+import { issueCertificate, verifyCertificate } from "../lib/certificate";
+import { verifyTurnstileToken } from "../lib/turnstile";
 
 const ratings = new Hono<{ Bindings: Env }>();
 
 const RATE_LIMIT_TTL = 60 * 60;
 const RATE_LIMIT_MAX = 10;
+const TURNSTILE_RATE_LIMIT_TTL = 60 * 60;
+const TURNSTILE_RATE_LIMIT_MAX = 5;
 
 ratings.post("/:themeId", async (c) => {
   const themeId = c.req.param("themeId");
@@ -37,11 +46,64 @@ ratings.post("/:themeId", async (c) => {
     );
   }
 
-  const { payload, signature, publicKey } = body;
+  const { payload, signature, publicKey, turnstileToken, certificate } = body;
 
   if (payload.themeId !== themeId) {
     return c.json<ErrorResponse>(
       { error: "THEME_MISMATCH", message: "Payload themeId must match URL parameter" },
+      400
+    );
+  }
+
+  let isNewlyCertified = false;
+  const ip = c.req.header("CF-Connecting-IP") || "unknown";
+
+  if (certificate) {
+    const isValidCert = await verifyCertificate(
+      certificate,
+      payload.keyId,
+      c.env.CERTIFICATE_SIGNING_KEY
+    );
+    if (!isValidCert) {
+      return c.json<ErrorResponse>(
+        { error: "INVALID_CERTIFICATE", message: "Certificate is invalid or expired" },
+        401
+      );
+    }
+  } else if (turnstileToken) {
+    const turnstileRateLimitKey = `ratelimit:turnstile:${ip}`;
+    const turnstileCount = parseInt(
+      (await c.env.KV.get(turnstileRateLimitKey)) || "0",
+      10
+    );
+
+    if (turnstileCount >= TURNSTILE_RATE_LIMIT_MAX) {
+      return c.json<ErrorResponse>(
+        { error: "RATE_LIMITED", message: "Too many verification attempts, please try again later" },
+        429
+      );
+    }
+
+    const isValidToken = await verifyTurnstileToken(
+      turnstileToken,
+      c.env.TURNSTILE_SECRET_KEY,
+      ip
+    );
+
+    if (!isValidToken) {
+      await c.env.KV.put(turnstileRateLimitKey, (turnstileCount + 1).toString(), {
+        expirationTtl: TURNSTILE_RATE_LIMIT_TTL,
+      });
+      return c.json<ErrorResponse>(
+        { error: "INVALID_TURNSTILE", message: "Turnstile verification failed" },
+        401
+      );
+    }
+
+    isNewlyCertified = true;
+  } else {
+    return c.json<ErrorResponse>(
+      { error: "CERTIFICATE_OR_TOKEN_REQUIRED", message: "Either a certificate or Turnstile token is required" },
       400
     );
   }
@@ -82,7 +144,6 @@ ratings.post("/:themeId", async (c) => {
   }
 
   if (!(await hasRating(c.env.DB, themeId, payload.keyId))) {
-    const ip = c.req.header("CF-Connecting-IP") || "unknown";
     const rateLimitKey = `ratelimit:rate:${ip}`;
     const currentCount = parseInt((await c.env.KV.get(rateLimitKey)) || "0", 10);
 
@@ -94,13 +155,26 @@ ratings.post("/:themeId", async (c) => {
     }
 
     await c.env.KV.put(rateLimitKey, (currentCount + 1).toString(), {
-      expirationTtl: RATE_LIMIT_TTL
+      expirationTtl: RATE_LIMIT_TTL,
     });
   }
 
   await upsertRating(c.env.DB, themeId, payload.keyId, payload.rating);
 
-  return c.json<RatingStats>(await getRatingStats(c.env.DB, themeId));
+  const stats = await getRatingStats(c.env.DB, themeId);
+
+  if (isNewlyCertified) {
+    const newCertificate = await issueCertificate(
+      payload.keyId,
+      c.env.CERTIFICATE_SIGNING_KEY
+    );
+    return c.json<RatingResponseWithCertificate>({
+      ...stats,
+      certificate: newCertificate,
+    });
+  }
+
+  return c.json<RatingStats>(stats);
 });
 
 ratings.get("/:themeId", async (c) => {

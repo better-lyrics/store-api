@@ -7,6 +7,9 @@ export interface Env {
   GITHUB_APP_PRIVATE_KEY: string;
   GITHUB_WEBHOOK_SECRET: string;
   GITHUB_ORG_INSTALLATION_ID: string;
+  TURNSTILE_SITE_KEY: string;
+  TURNSTILE_SECRET_KEY: string;
+  CERTIFICATE_SIGNING_KEY: string;
 }
 
 export type AppContext = Context<{ Bindings: Env }>;
@@ -43,6 +46,12 @@ export interface SignedRatingBody {
   payload: SignedRatingPayload;
   signature: string;
   publicKey?: JsonWebKey;
+  turnstileToken?: string;
+  certificate?: string;
+}
+
+export interface RatingResponseWithCertificate extends RatingStats {
+  certificate?: string;
 }
 
 export interface SignedInstallPayload {
