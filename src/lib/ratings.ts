@@ -47,3 +47,19 @@ export async function getRatingStats(
     count: stats?.rating_count || 0
   };
 }
+
+export async function getUserRatings(
+  db: D1Database,
+  keyId: string
+): Promise<Record<string, number>> {
+  const results = await db
+    .prepare("SELECT theme_id, rating FROM ratings WHERE key_id = ?")
+    .bind(keyId.toLowerCase())
+    .all<{ theme_id: string; rating: number }>();
+
+  const ratings: Record<string, number> = {};
+  for (const row of results.results) {
+    ratings[row.theme_id] = row.rating;
+  }
+  return ratings;
+}

@@ -90,6 +90,21 @@ export interface ErrorResponse {
   message: string;
 }
 
+export interface UserRatingsPayload {
+  keyId: string;
+  timestamp: number;
+  nonce: string;
+}
+
+export interface UserRatingsBody {
+  payload: UserRatingsPayload;
+  signature: string;
+}
+
+export interface UserRatingsResponse {
+  [themeId: string]: number;
+}
+
 export interface ThemeMetadata {
   id: string;
   title: string;

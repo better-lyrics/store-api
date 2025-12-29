@@ -1,4 +1,10 @@
-import type { SignedRatingBody, SignedRatingPayload, SignedInstallBody, SignedInstallPayload } from "./types";
+import type {
+  SignedRatingBody,
+  SignedRatingPayload,
+  SignedInstallBody,
+  SignedInstallPayload,
+  UserRatingsBody,
+} from "./types";
 
 const THEME_ID_REGEX = /^[a-zA-Z0-9-]+$/;
 const KEY_ID_REGEX = /^[0-9a-f]{64}$/i;
@@ -93,4 +99,21 @@ export function isValidSignedInstallBody(body: unknown): body is SignedInstallBo
   if (b.publicKey !== undefined && !isValidJwk(b.publicKey)) return false;
 
   return true;
+}
+
+export function isValidUserRatingsBody(body: unknown): body is UserRatingsBody {
+  if (!body || typeof body !== "object") return false;
+  const b = body as Record<string, unknown>;
+
+  if (typeof b.signature !== "string" || b.signature.length === 0) return false;
+
+  const payload = b.payload;
+  if (!payload || typeof payload !== "object") return false;
+  const p = payload as Record<string, unknown>;
+
+  return (
+    isValidKeyId(p.keyId) &&
+    typeof p.timestamp === "number" &&
+    isValidNonce(p.nonce)
+  );
 }
