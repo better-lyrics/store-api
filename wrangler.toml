@@ -1,0 +1,20 @@
+name = "better-lyrics-themes-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "ab9aa19609bd4c26a9fe8f0728b4ad93"
+preview_id = "9b1fe83588484e8c8627e1fbda3eb4b9"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "themes-db"
+database_id = "4593b48b-d24d-47da-8c9f-dcfa0e764a28"
+
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
