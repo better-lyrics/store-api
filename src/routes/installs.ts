@@ -3,6 +3,7 @@ import type { Env, InstallResponse, ErrorResponse } from "../lib/types";
 import { verifySignature, isTimestampFresh, verifyKeyId } from "../lib/crypto";
 import { getPublicKey, registerPublicKey } from "../lib/publicKeys";
 import { isValidThemeId, isValidSignedInstallBody } from "../lib/validation";
+import { hasInstallMarker, recordInstall, getInstallCount } from "../lib/installs";
 
 const installs = new Hono<{ Bindings: Env }>();
 
@@ -78,23 +79,13 @@ installs.post("/:themeId", async (c) => {
     );
   }
 
-  const installMarkerKey = `installed:${payload.keyId}:${themeId}`;
-  const existing = await c.env.KV.get(installMarkerKey);
-  if (existing) {
-    const installKey = `installs:${themeId}`;
-    const currentCount = parseInt((await c.env.KV.get(installKey)) || "0", 10) || 0;
+  const alreadyInstalled = await hasInstallMarker(c.env.DB, payload.keyId, themeId);
+  if (alreadyInstalled) {
+    const currentCount = await getInstallCount(c.env.DB, themeId);
     return c.json<InstallResponse>({ count: currentCount, alreadyCounted: true });
   }
 
-  const installKey = `installs:${themeId}`;
-  const currentCount = await c.env.KV.get(installKey);
-  const newCount = (parseInt(currentCount || "0", 10) || 0) + 1;
-
-  await Promise.all([
-    c.env.KV.put(installKey, newCount.toString()),
-    c.env.KV.put(installMarkerKey, "1"),
-  ]);
-
+  const newCount = await recordInstall(c.env.DB, payload.keyId, themeId);
   return c.json<InstallResponse>({ count: newCount });
 });
 

@@ -8,6 +8,7 @@ import webhooks from "./routes/webhooks";
 import identity from "./routes/identity";
 import turnstile from "./routes/turnstile";
 import user from "./routes/user";
+import migrate from "./routes/migrate";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -23,6 +24,7 @@ app.route("/api/webhooks", webhooks);
 app.route("/api/identity", identity);
 app.route("/api/user", user);
 app.route("/turnstile", turnstile);
+app.route("/api/internal", migrate);
 
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));

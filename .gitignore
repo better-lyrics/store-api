@@ -143,3 +143,5 @@ vite.config.ts.timestamp-*
 
 .wrangler
 *.dev.vars*
+# Localflare generated files
+.localflare/

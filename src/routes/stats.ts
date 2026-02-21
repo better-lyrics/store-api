@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env, StatsResponse, RatingAggregateRow } from "../lib/types";
+import { getAllInstallCounts } from "../lib/installs";
 
 const stats = new Hono<{ Bindings: Env }>();
 
@@ -20,33 +21,20 @@ stats.get("/", async (c) => {
     });
   }
 
-  // Get all install counts from KV
-  // Note: KV list has a 1000 key limit per call, paginate if needed
-  const installsList = await c.env.KV.list({ prefix: "installs:" });
+  const installCounts = await getAllInstallCounts(c.env.DB);
 
   const result: StatsResponse = {};
 
-  // Fetch all install counts in parallel
-  const installPromises = installsList.keys.map(async (key) => {
-    const themeId = key.name.replace("installs:", "");
-    const count = await c.env.KV.get(key.name);
-    return { themeId, count: parseInt(count || "0", 10) };
-  });
-
-  const installs = await Promise.all(installPromises);
-
-  // Combine install counts with ratings
-  for (const { themeId, count } of installs) {
-    const rating = ratingsMap.get(themeId);
-    result[themeId] = {
+  for (const { theme_id, count } of installCounts) {
+    const rating = ratingsMap.get(theme_id);
+    result[theme_id] = {
       installs: count,
       rating: rating?.average || 0,
       ratingCount: rating?.count || 0,
     };
-    ratingsMap.delete(themeId); // Remove to track themes with only ratings
+    ratingsMap.delete(theme_id);
   }
 
-  // Add themes that have ratings but no installs
   for (const [themeId, rating] of ratingsMap) {
     result[themeId] = {
       installs: 0,

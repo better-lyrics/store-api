@@ -34,3 +34,15 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_repo ON webhook_logs(repo);
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_status ON webhook_logs(status);
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_created ON webhook_logs(created_at);
+
+CREATE TABLE IF NOT EXISTS install_counts (
+  theme_id TEXT PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS install_markers (
+  key_id TEXT NOT NULL,
+  theme_id TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (key_id, theme_id)
+);
