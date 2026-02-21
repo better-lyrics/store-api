@@ -5,9 +5,7 @@ CREATE TABLE IF NOT EXISTS public_keys (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-DROP TABLE IF EXISTS ratings;
-
-CREATE TABLE ratings (
+CREATE TABLE IF NOT EXISTS ratings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   theme_id TEXT NOT NULL,
   key_id TEXT NOT NULL REFERENCES public_keys(key_id),
@@ -17,8 +15,8 @@ CREATE TABLE ratings (
   UNIQUE(theme_id, key_id)
 );
 
-CREATE INDEX idx_ratings_theme ON ratings(theme_id);
-CREATE INDEX idx_ratings_key ON ratings(key_id);
+CREATE INDEX IF NOT EXISTS idx_ratings_theme ON ratings(theme_id);
+CREATE INDEX IF NOT EXISTS idx_ratings_key ON ratings(key_id);
 
 CREATE TABLE IF NOT EXISTS webhook_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
