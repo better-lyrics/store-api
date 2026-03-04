@@ -1,12 +1,18 @@
 import { cors } from "hono/cors";
 
-// Allow requests from Chrome extensions
-const CHROME_EXTENSION_PATTERN = /^chrome-extension:\/\/[a-z]{32}$/;
+const BROWSER_EXTENSION_PROTOCOLS = [
+  "chrome-extension://",
+  "moz-extension://",
+];
 
 export const corsMiddleware = cors({
   origin: (origin) => {
-    // Allow chrome-extension:// origins
-    if (origin && CHROME_EXTENSION_PATTERN.test(origin)) {
+    if (
+      origin &&
+      BROWSER_EXTENSION_PROTOCOLS.some((protocol) =>
+        origin.startsWith(protocol)
+      )
+    ) {
       return origin;
     }
     // Allow requests with no origin (e.g., from server-side or curl)
