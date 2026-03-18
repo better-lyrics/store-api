@@ -8,6 +8,7 @@ import webhooks from "./routes/webhooks";
 import identity from "./routes/identity";
 import turnstile from "./routes/turnstile";
 import user from "./routes/user";
+import badge from "./routes/badge";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -22,6 +23,7 @@ app.route("/api/stats", stats);
 app.route("/api/webhooks", webhooks);
 app.route("/api/identity", identity);
 app.route("/api/user", user);
+app.route("/api/badge", badge);
 app.route("/turnstile", turnstile);
 
 
