@@ -33,10 +33,7 @@ badge.get("/:themeId/rating", async (c) => {
   return c.json({
     schemaVersion: 1,
     label: "Better Lyrics Themes",
-    message:
-      stats.count > 0
-        ? `${stats.average} / 5 (${formatCount(stats.count)} ratings)`
-        : "No ratings",
+    message: stats.count > 0 ? `${stats.average}/5` : "No ratings",
     color: "F50032",
     logoSvg: LOGO_SVG,
   });
