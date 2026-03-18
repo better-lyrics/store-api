@@ -16,9 +16,9 @@ badge.get("/:themeId", async (c) => {
 
   return c.json({
     schemaVersion: 1,
-    label: "installs",
-    message: formatCount(installCount),
-    color: "blue",
+    label: "Better Lyrics Themes",
+    message: `${formatCount(installCount)} installs`,
+    color: "F50032",
   });
 });
 
