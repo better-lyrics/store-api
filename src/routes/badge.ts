@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../lib/types";
 import { getInstallCount } from "../lib/installs";
+import { getRatingStats } from "../lib/ratings";
 
 const badge = new Hono<{ Bindings: Env }>();
 
@@ -20,6 +21,22 @@ badge.get("/:themeId", async (c) => {
     schemaVersion: 1,
     label: "Better Lyrics Themes",
     message: `${formatCount(installCount)} installs`,
+    color: "F50032",
+    logoSvg: LOGO_SVG,
+  });
+});
+
+badge.get("/:themeId/rating", async (c) => {
+  const themeId = c.req.param("themeId");
+  const stats = await getRatingStats(c.env.DB, themeId);
+
+  return c.json({
+    schemaVersion: 1,
+    label: "Better Lyrics Themes",
+    message:
+      stats.count > 0
+        ? `${stats.average} / 5 (${formatCount(stats.count)} ratings)`
+        : "No ratings",
     color: "F50032",
     logoSvg: LOGO_SVG,
   });
