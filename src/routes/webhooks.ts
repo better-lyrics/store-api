@@ -140,8 +140,8 @@ webhooks.post("/github", async (c) => {
     return c.json({ message: "Ignoring non-default branch", ref }, 200);
   }
 
-  if (author === "better-lyrics") {
-    return c.json({ message: "Ignoring better-lyrics repo" }, 200);
+  if (author === "better-lyrics" && !payload.repository.name.startsWith("theme-")) {
+    return c.json({ message: "Ignoring non-theme better-lyrics repo" }, 200);
   }
 
   if (!installationId) {
