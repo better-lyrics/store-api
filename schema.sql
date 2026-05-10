@@ -44,3 +44,13 @@ CREATE TABLE IF NOT EXISTS install_markers (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (key_id, theme_id)
 );
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  scope TEXT NOT NULL,
+  key TEXT NOT NULL,
+  count INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (scope, key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limits_expires_at ON rate_limits(expires_at);

@@ -4,11 +4,13 @@ import { verifySignature, isTimestampFresh } from "../lib/crypto";
 import { getPublicKey } from "../lib/publicKeys";
 import { getUserRatings } from "../lib/ratings";
 import { isValidUserRatingsBody } from "../lib/validation";
+import { checkLimit, incrementLimit } from "../lib/rateLimits";
 
 const user = new Hono<{ Bindings: Env }>();
 
 const RATE_LIMIT_TTL = 60;
 const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_SCOPE = "user-ratings";
 
 user.post("/ratings", async (c) => {
   let body: unknown;
@@ -38,10 +40,9 @@ user.post("/ratings", async (c) => {
   }
 
   const ip = c.req.header("CF-Connecting-IP") || "unknown";
-  const rateLimitKey = `ratelimit:user-ratings:${ip}`;
-  const currentCount = parseInt((await c.env.KV.get(rateLimitKey)) || "0", 10);
+  const limitCheck = await checkLimit(c.env.DB, RATE_LIMIT_SCOPE, ip, RATE_LIMIT_MAX);
 
-  if (currentCount >= RATE_LIMIT_MAX) {
+  if (!limitCheck.allowed) {
     return c.json<ErrorResponse>(
       { error: "RATE_LIMITED", message: "Too many requests, please try again later" },
       429
@@ -64,9 +65,7 @@ user.post("/ratings", async (c) => {
     );
   }
 
-  await c.env.KV.put(rateLimitKey, (currentCount + 1).toString(), {
-    expirationTtl: RATE_LIMIT_TTL,
-  });
+  await incrementLimit(c.env.DB, RATE_LIMIT_SCOPE, ip, RATE_LIMIT_TTL);
 
   return c.json<UserRatingsResponse>(await getUserRatings(c.env.DB, payload.keyId));
 });
