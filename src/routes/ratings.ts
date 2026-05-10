@@ -11,13 +11,16 @@ import { upsertRating, hasRating, getRatingStats } from "../lib/ratings";
 import { isValidThemeId, isValidSignedRatingBody } from "../lib/validation";
 import { issueCertificate, verifyCertificate } from "../lib/certificate";
 import { verifyTurnstileToken } from "../lib/turnstile";
+import { checkLimit, incrementLimit } from "../lib/rateLimits";
 
 const ratings = new Hono<{ Bindings: Env }>();
 
 const RATE_LIMIT_TTL = 60 * 60;
 const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_SCOPE = "rate";
 const TURNSTILE_RATE_LIMIT_TTL = 60 * 60;
 const TURNSTILE_RATE_LIMIT_MAX = 5;
+const TURNSTILE_RATE_LIMIT_SCOPE = "turnstile";
 
 ratings.post("/:themeId", async (c) => {
   const themeId = c.req.param("themeId");
@@ -71,13 +74,14 @@ ratings.post("/:themeId", async (c) => {
       );
     }
   } else if (turnstileToken) {
-    const turnstileRateLimitKey = `ratelimit:turnstile:${ip}`;
-    const turnstileCount = parseInt(
-      (await c.env.KV.get(turnstileRateLimitKey)) || "0",
-      10
+    const limitCheck = await checkLimit(
+      c.env.DB,
+      TURNSTILE_RATE_LIMIT_SCOPE,
+      ip,
+      TURNSTILE_RATE_LIMIT_MAX
     );
 
-    if (turnstileCount >= TURNSTILE_RATE_LIMIT_MAX) {
+    if (!limitCheck.allowed) {
       return c.json<ErrorResponse>(
         { error: "RATE_LIMITED", message: "Too many verification attempts, please try again later" },
         429
@@ -91,9 +95,12 @@ ratings.post("/:themeId", async (c) => {
     );
 
     if (!isValidToken) {
-      await c.env.KV.put(turnstileRateLimitKey, (turnstileCount + 1).toString(), {
-        expirationTtl: TURNSTILE_RATE_LIMIT_TTL,
-      });
+      await incrementLimit(
+        c.env.DB,
+        TURNSTILE_RATE_LIMIT_SCOPE,
+        ip,
+        TURNSTILE_RATE_LIMIT_TTL
+      );
       return c.json<ErrorResponse>(
         { error: "INVALID_TURNSTILE", message: "Turnstile verification failed" },
         401
@@ -144,19 +151,16 @@ ratings.post("/:themeId", async (c) => {
   }
 
   if (!(await hasRating(c.env.DB, themeId, payload.keyId))) {
-    const rateLimitKey = `ratelimit:rate:${ip}`;
-    const currentCount = parseInt((await c.env.KV.get(rateLimitKey)) || "0", 10);
+    const limitCheck = await checkLimit(c.env.DB, RATE_LIMIT_SCOPE, ip, RATE_LIMIT_MAX);
 
-    if (currentCount >= RATE_LIMIT_MAX) {
+    if (!limitCheck.allowed) {
       return c.json<ErrorResponse>(
         { error: "RATE_LIMITED", message: "Too many new ratings, please try again later" },
         429
       );
     }
 
-    await c.env.KV.put(rateLimitKey, (currentCount + 1).toString(), {
-      expirationTtl: RATE_LIMIT_TTL,
-    });
+    await incrementLimit(c.env.DB, RATE_LIMIT_SCOPE, ip, RATE_LIMIT_TTL);
   }
 
   await upsertRating(c.env.DB, themeId, payload.keyId, payload.rating);
