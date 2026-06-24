@@ -10,6 +10,7 @@ import {
   setCommitStatus,
   triggerRegistryDispatch,
 } from "../lib/github";
+import { bustLockfileCache } from "../lib/resolve";
 
 const webhooks = new Hono<{ Bindings: Env }>();
 
@@ -270,6 +271,12 @@ webhooks.post("/complete", async (c) => {
     context: "Better Lyrics Registry",
     targetUrl,
   });
+
+  // A successful vendor publishes a new build, so drop the resolver cache to
+  // make it resolvable within one push.
+  if (success) {
+    await bustLockfileCache(c.env);
+  }
 
   return c.json({ message: "Status updated", repo, commit, success });
 });
