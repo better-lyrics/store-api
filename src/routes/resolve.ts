@@ -24,13 +24,16 @@ resolve.get("/:themeId", async (c) => {
   const entry = lockfile.themes.find((t) => t.id === themeId);
 
   if (!entry) {
-    return c.json({ error: "no compatible build" }, 404);
+    return c.json<ErrorResponse>({ error: "THEME_NOT_FOUND", message: "Theme not found" }, 404);
   }
 
   const build = resolveBuild(entry, ext);
 
   if (!build) {
-    return c.json({ error: "no compatible build" }, 404);
+    return c.json<ErrorResponse>(
+      { error: "NO_COMPATIBLE_BUILD", message: "No build compatible with this extension version" },
+      404
+    );
   }
 
   return c.json({
