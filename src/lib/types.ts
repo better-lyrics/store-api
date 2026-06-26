@@ -120,6 +120,7 @@ export interface ThemeMetadata {
 export interface WebhookPayload {
   repository: {
     full_name: string;
+    name: string;
     owner: {
       login: string;
     };
